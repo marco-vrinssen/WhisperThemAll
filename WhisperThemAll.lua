@@ -31,16 +31,8 @@ local function createWhisperFrame()
     
     whisperFrame.title = whisperFrame:CreateFontString(nil, "OVERLAY")
     whisperFrame.title:SetFontObject("GameFontHighlight")
-    whisperFrame.title:SetPoint("LEFT", whisperFrame.TitleBg, "LEFT", 5, 0)
-    whisperFrame.title:SetText("Whisper Them All")
-    
-    -- Add helper text
-    
-    whisperFrame.helperText = whisperFrame:CreateFontString(nil, "OVERLAY")
-    whisperFrame.helperText:SetFontObject("GameFontNormal")
-    whisperFrame.helperText:SetPoint("TOPLEFT", whisperFrame, "TOPLEFT", 15, -35)
-    whisperFrame.helperText:SetText('Use "/wta" to open this window, or "/wta MESSAGE" to send MESSAGE to all players in the list')
-    whisperFrame.helperText:SetTextColor(0.7, 0.7, 0.7)
+    whisperFrame.title:SetPoint("TOP", whisperFrame, "TOP", 0, -5)
+    whisperFrame.title:SetText("Player Name List")
     
     return whisperFrame
 end
@@ -63,32 +55,52 @@ end
 -- Create names input
 
 local function createNameInput(parentFrame)
-    namesScroll = CreateFrame("ScrollFrame", "WhisperThemAllScrollFrame", parentFrame, "UIPanelScrollFrameTemplate")
-    namesScroll:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 15, -60)
-    namesScroll:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", -35, 50)
+    -- Create input background
+    
+    local inputBg = CreateFrame("Frame", nil, parentFrame, "InsetFrameTemplate")
+    inputBg:SetPoint("TOPLEFT", parentFrame, "TOPLEFT", 15, -30)
+    inputBg:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", -15, 60)
+    
+    -- Create scroll frame for long lists
+    
+    local namesScroll = CreateFrame("ScrollFrame", "WhisperThemAllScrollFrame", inputBg, "UIPanelScrollFrameTemplate")
+    namesScroll:SetPoint("TOPLEFT", inputBg, "TOPLEFT", 8, -8)
+    namesScroll:SetPoint("BOTTOMRIGHT", inputBg, "BOTTOMRIGHT", -28, 8)
+    
+    -- Create names input
     
     namesInput = CreateFrame("EditBox", "WhisperThemAllEditBox", namesScroll)
     namesInput:SetMultiLine(true)
     namesInput:SetAutoFocus(false)
     namesInput:SetFontObject("ChatFontNormal")
     namesInput:SetWidth(namesScroll:GetWidth())
-    namesInput:SetScript("OnEscapePressed", function()
-        namesInput:ClearFocus()
-        whisperFrame:Hide()
+    namesInput:EnableMouse(true)
+    namesInput:SetMaxLetters(0)
+    
+    namesInput:SetScript("OnEscapePressed", function(self)
+        self:ClearFocus()
     end)
     
     namesScroll:SetScrollChild(namesInput)
+    namesScroll:EnableMouseWheel(true)
+    namesScroll:SetScript("OnMouseWheel", function(self, delta)
+        local current = self:GetVerticalScroll()
+        local maxScroll = self:GetVerticalScrollRange()
+        local newScroll = math.max(0, math.min(current - (delta * 20), maxScroll))
+        self:SetVerticalScroll(newScroll)
+    end)
     
     local placeholderText = namesInput:CreateFontString(nil, "OVERLAY")
     placeholderText:SetFontObject("ChatFontNormal")
-    placeholderText:SetPoint("TOPLEFT", namesInput, "TOPLEFT", 5, -5)
+    placeholderText:SetPoint("TOPLEFT", namesInput, "TOPLEFT", 3, -3)
     placeholderText:SetTextColor(0.5, 0.5, 0.5)
-    placeholderText:SetText("Enter character names, one per line...")
+    placeholderText:SetText("Enter each player name on a new line using this format: CharacterName-ServerName")
+    placeholderText:SetWidth(namesScroll:GetWidth() - 10)
+    placeholderText:SetJustifyH("LEFT")
+    placeholderText:SetWordWrap(true)
     
     namesInput:SetScript("OnEditFocusGained", function()
-        if namesInput:GetText() == "" then
-            placeholderText:Hide()
-        end
+        placeholderText:Hide()
     end)
     
     namesInput:SetScript("OnEditFocusLost", function()
@@ -107,9 +119,10 @@ local function createNameInput(parentFrame)
         
         WhisperThemAllDB.playerNames = inputText
         
+        -- Update height for scrolling
         local lineCount = select(2, inputText:gsub('\n', '\n')) + 1
         local lineHeight = select(2, namesInput:GetFont()) or 14
-        local newHeight = math.max(lineCount * lineHeight, namesScroll:GetHeight() - 20)
+        local newHeight = math.max(lineCount * lineHeight, namesScroll:GetHeight())
         self:SetHeight(newHeight)
     end)
     
@@ -117,7 +130,16 @@ local function createNameInput(parentFrame)
     
     if WhisperThemAllDB.playerNames and WhisperThemAllDB.playerNames ~= "" then
         namesInput:SetText(WhisperThemAllDB.playerNames)
+        placeholderText:Hide()
     end
+    
+    -- Create button background
+    
+    local buttonBg = parentFrame:CreateTexture(nil, "BACKGROUND")
+    buttonBg:SetPoint("BOTTOMLEFT", parentFrame, "BOTTOMLEFT", 10, 10)
+    buttonBg:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", -10, 10)
+    buttonBg:SetHeight(40)
+    buttonBg:SetColorTexture(0.1, 0.1, 0.1, 0.5)
 end
 
 -- Send whispers
@@ -134,52 +156,82 @@ end
 
 local function createMessagePanel()
     local childFrame = CreateFrame("Frame", "WhisperThemAllMessagePanel", UIParent, "BasicFrameTemplateWithInset")
-    childFrame:SetSize(480, 240)
+    childFrame:SetSize(500, 240)
     childFrame:SetFrameStrata("DIALOG")
     childFrame:SetFrameLevel(1000)
     childFrame:Hide()
     
-    -- Focus message input
-    
-    childFrame:SetScript("OnMouseDown", function(self)
-        if self.messageInput then
-            self.messageInput:SetFocus()
-        end
-    end)
+    childFrame:SetMovable(true)
+    childFrame:EnableMouse(true)
+    childFrame:RegisterForDrag("LeftButton")
+    childFrame:SetScript("OnDragStart", childFrame.StartMoving)
+    childFrame:SetScript("OnDragStop", childFrame.StopMovingOrSizing)
     
     -- Add title
     
     childFrame.title = childFrame:CreateFontString(nil, "OVERLAY")
     childFrame.title:SetFontObject("GameFontHighlight")
-    childFrame.title:SetPoint("CENTER", childFrame.TitleBg, "CENTER", 0, 0)
-    childFrame.title:SetText("Message Settings")
+    childFrame.title:SetPoint("TOP", childFrame, "TOP", 0, -5)
+    childFrame.title:SetText("Whisper Message Configuration")
     
-    -- Add message label
+    -- Create input background
     
-    local messageLabel = childFrame:CreateFontString(nil, "OVERLAY")
-    messageLabel:SetFontObject("GameFontNormal")
-    messageLabel:SetPoint("TOPLEFT", childFrame, "TOPLEFT", 20, -35)
-    messageLabel:SetText("Predefined whisper message:")
+    local inputBg = CreateFrame("Frame", nil, childFrame, "InsetFrameTemplate")
+    inputBg:SetPoint("TOPLEFT", childFrame, "TOPLEFT", 15, -30)
+    inputBg:SetPoint("BOTTOMRIGHT", childFrame, "BOTTOMRIGHT", -15, 60)
     
-    -- Create message input
+    -- Create message input directly (no scroll frame needed for 260 chars)
     
-    local messageInput = CreateFrame("EditBox", nil, childFrame)
-    messageInput:SetPoint("TOPLEFT", messageLabel, "BOTTOMLEFT", 0, -8)
-    messageInput:SetSize(432, 160)
+    local messageInput = CreateFrame("EditBox", "WhisperThemAllMessageEditBox", inputBg)
+    messageInput:SetPoint("TOPLEFT", inputBg, "TOPLEFT", 8, -8)
+    messageInput:SetPoint("BOTTOMRIGHT", inputBg, "BOTTOMRIGHT", -8, 8)
     messageInput:SetMultiLine(true)
     messageInput:SetMaxLetters(260)
     messageInput:SetAutoFocus(false)
     messageInput:SetFontObject("ChatFontNormal")
+    messageInput:EnableMouse(true)
     
-    -- Limit input to three lines
+    messageInput:SetScript("OnEscapePressed", function(self)
+        self:ClearFocus()
+    end)
     
-    messageInput:SetScript("OnTextChanged", function(self)
+    -- Create placeholder text
+    
+    local placeholderText = messageInput:CreateFontString(nil, "OVERLAY")
+    placeholderText:SetFontObject("ChatFontNormal")
+    placeholderText:SetPoint("TOPLEFT", messageInput, "TOPLEFT", 3, -3)
+    placeholderText:SetTextColor(0.5, 0.5, 0.5)
+    placeholderText:SetText("Enter the predefined message that later can be send to all players in the list (max. 260 characters)")
+    placeholderText:SetWidth(inputBg:GetWidth() - 20)
+    placeholderText:SetJustifyH("LEFT")
+    placeholderText:SetWordWrap(true)
+    
+    messageInput:SetScript("OnEditFocusGained", function()
+        placeholderText:Hide()
+    end)
+    
+    messageInput:SetScript("OnEditFocusLost", function()
+        if messageInput:GetText() == "" then
+            placeholderText:Show()
+        end
+    end)
+    
+    messageInput:SetScript("OnTextChanged", function(self, userInput)
         local text = self:GetText()
+        
+        if text == "" then
+            placeholderText:Show()
+        else
+            placeholderText:Hide()
+        end
+        
+        -- Count lines
         local lines = 1
         for _ in text:gmatch("\n") do
             lines = lines + 1
         end
 
+        -- Limit to 3 lines
         if lines > 3 then
             local newText = text:sub(1, -2)
             self:SetText(newText)
@@ -187,19 +239,27 @@ local function createMessagePanel()
         end
     end)
     
-    -- Create close button
+    -- Create button background
     
-    local cancelButton = CreateFrame("Button", nil, childFrame, "GameMenuButtonTemplate")
-    cancelButton:SetSize(80, 25)
-    cancelButton:SetPoint("BOTTOMLEFT", childFrame, "BOTTOMLEFT", 20, 20)
-    cancelButton:SetText("Cancel")
+    local buttonBg = childFrame:CreateTexture(nil, "BACKGROUND")
+    buttonBg:SetPoint("BOTTOMLEFT", childFrame, "BOTTOMLEFT", 10, 10)
+    buttonBg:SetPoint("BOTTOMRIGHT", childFrame, "BOTTOMRIGHT", -10, 10)
+    buttonBg:SetHeight(40)
+    buttonBg:SetColorTexture(0.1, 0.1, 0.1, 0.5)
+    
+    -- Create cancel button
+    
+    local cancelButton = CreateFrame("Button", nil, childFrame, "UIPanelButtonTemplate")
+    cancelButton:SetPoint("BOTTOMLEFT", childFrame, "BOTTOMLEFT", 20, 15)
+    cancelButton:SetText("Close")
+    cancelButton:SetWidth(80)
     
     -- Create save button
     
-    local saveButton = CreateFrame("Button", nil, childFrame, "GameMenuButtonTemplate")
-    saveButton:SetSize(80, 25)
-    saveButton:SetPoint("BOTTOMRIGHT", childFrame, "BOTTOMRIGHT", -20, 20)
+    local saveButton = CreateFrame("Button", nil, childFrame, "UIPanelButtonTemplate")
+    saveButton:SetPoint("BOTTOMRIGHT", childFrame, "BOTTOMRIGHT", -20, 15)
     saveButton:SetText("Save")
+    saveButton:SetWidth(80)
     
     local originalMessage = ""
     
@@ -208,6 +268,11 @@ local function createMessagePanel()
     local function initializeControls()
         originalMessage = WhisperThemAllDB.message or ""
         messageInput:SetText(originalMessage)
+        if originalMessage ~= "" then
+            placeholderText:Hide()
+        else
+            placeholderText:Show()
+        end
     end
     
     -- Restore original message
@@ -245,13 +310,31 @@ local function showMessagePanel()
     messagePanel:Show()
 end
 
+-- Run whisper send
+
+local function runWhisperSend(messageText)
+    local namesText = WhisperThemAllDB.playerNames
+    if not namesText or namesText == "" then
+        print("|cffff0000WhisperThemAll:|r No player names in list.")
+        return
+    end
+    
+    local playerNames = parsePlayerNames(namesText)
+    if #playerNames > 0 then
+        sendWhispers(messageText, playerNames)
+        print("|cff00ff00WhisperThemAll:|r Sent message to " .. #playerNames .. " player(s).")
+    else
+        print("|cffff0000WhisperThemAll:|r No valid player names in list.")
+    end
+end
+
 -- Create close button
 
 local function createCloseButton(parentFrame)
     local closeButton = CreateFrame("Button", "WhisperThemAllCancelButton", parentFrame, "UIPanelButtonTemplate")
-    closeButton:SetSize(80, 22)
-    closeButton:SetPoint("BOTTOMLEFT", parentFrame, "BOTTOMLEFT", 15, 15)
+    closeButton:SetPoint("BOTTOMLEFT", parentFrame, "BOTTOMLEFT", 20, 15)
     closeButton:SetText("Close")
+    closeButton:SetWidth(80)
     
     closeButton:SetScript("OnClick", function()
         whisperFrame:Hide()
@@ -264,9 +347,9 @@ end
 
 local function createMessageButton(parentFrame)
     local configButton = CreateFrame("Button", "WhisperThemAllConfigButton", parentFrame, "UIPanelButtonTemplate")
-    configButton:SetSize(130, 22)
-    configButton:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", -135, 15)
+    configButton:SetPoint("BOTTOM", parentFrame, "BOTTOM", 0, 15)
     configButton:SetText("Configure Message")
+    configButton:SetWidth(140)
     
     configButton:SetScript("OnClick", function()
         showMessagePanel()
@@ -279,37 +362,21 @@ end
 
 local function createWhisperButton(parentFrame)
     local whisperButton = CreateFrame("Button", "WhisperThemAllWhisperButton", parentFrame, "UIPanelButtonTemplate")
-    whisperButton:SetSize(100, 22)
-    whisperButton:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", -15, 15)
-    whisperButton:SetText("Send Whispers")
+    whisperButton:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", -20, 15)
+    whisperButton:SetText("Send Message")
+    whisperButton:SetWidth(120)
     
     whisperButton:SetScript("OnClick", function()
-        local prefillText = "/wta "
-        if WhisperThemAllDB.message and WhisperThemAllDB.message ~= "" then
-            prefillText = "/wta " .. WhisperThemAllDB.message
+        local messageText = WhisperThemAllDB.message
+        if not messageText or messageText == "" then
+            print("|cffff0000WhisperThemAll:|r No message configured. Click 'Configure Message' first.")
+            return
         end
-        ChatFrame_OpenChat(prefillText)
+        
+        runWhisperSend(messageText)
     end)
     
     return whisperButton
-end
-
--- Run whisper send
-
-local function runWhisperSend(messageText)
-    local namesText = WhisperThemAllDB.playerNames
-    if not namesText or namesText == "" then
-        print("|cffff0000WhisperThemAll:|r No player names in list. Use /wta to add names.")
-        return
-    end
-    
-    local playerNames = parsePlayerNames(namesText)
-    if #playerNames > 0 then
-        sendWhispers(messageText, playerNames)
-        print("|cff00ff00WhisperThemAll:|r Sent message to " .. #playerNames .. " player(s).")
-    else
-        print("|cffff0000WhisperThemAll:|r No valid player names in list.")
-    end
 end
 
 -- Show whisper frame
@@ -327,17 +394,21 @@ local function showWhisperFrame()
     namesInput:SetFocus()
 end
 
--- Register command
+-- Replace FriendsFrame send message button
 
-SLASH_WHISPERTHEMALL1 = "/wta"
-SLASH_WHISPERTHEMALL2 = "/whisperthemall"
-SlashCmdList["WHISPERTHEMALL"] = function(messageText)
-    if not messageText or messageText == "" then
-        showWhisperFrame()
-        return
+local function replaceFrameButton()
+    if FriendsFrameSendMessageButton then
+        FriendsFrameSendMessageButton:Hide()
+        
+        local wtaButton = CreateFrame("Button", "WhisperThemAllFrameButton", FriendsListFrame, "UIPanelButtonTemplate")
+        wtaButton:SetSize(FriendsFrameSendMessageButton:GetWidth(), FriendsFrameSendMessageButton:GetHeight())
+        wtaButton:SetPoint("CENTER", FriendsFrameSendMessageButton, "CENTER", 0, 0)
+        wtaButton:SetText("WhisperThemAll")
+        
+        wtaButton:SetScript("OnClick", function()
+            showWhisperFrame()
+        end)
     end
-    
-    runWhisperSend(messageText)
 end
 
 -- Initialize saved variables
@@ -352,8 +423,8 @@ eventFrame:SetScript("OnEvent", function(self, event, loadedAddonName)
         WhisperThemAllDB.playerNames = WhisperThemAllDB.playerNames or ""
         WhisperThemAllDB.message = WhisperThemAllDB.message or ""
     elseif event == "PLAYER_LOGIN" then
-        C_Timer.After(2, function()
-            print("|cff00ff00WhisperThemAll:|r Type /wta for commands.")
+        C_Timer.After(0.5, function()
+            replaceFrameButton()
         end)
     end
 end)

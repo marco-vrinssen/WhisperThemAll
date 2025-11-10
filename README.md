@@ -7,15 +7,15 @@ World of Warcraft Retail addon that enables sending batch whispers to multiple p
 - **Batch Whispers**: Send the same message to multiple players at once
 - **Saved Player List**: Maintain a persistent list of player names across sessions
 - **Message Templates**: Save and reuse predefined whisper messages
+- **Friends Frame Integration**: WhisperThemAll button replaces the send message button in Friends Frame
 - **Easy Management**: Simple UI for managing your player list and messages
-- **Quick Commands**: Fast slash commands for immediate batch sending
 
 ## Usage
 
-### Commands
+### Opening WhisperThemAll
 
-- `/wta` or `/whisperthemall` - Open the player list management window
-- `/wta MESSAGE` - Send MESSAGE to all players in your saved list
+1. Open your Friends list (default: O key)
+2. Click the **WhisperThemAll** button (replaces the send message button)
 
 ### Managing Your Player List
 
@@ -33,42 +33,11 @@ World of Warcraft Retail addon that enables sending batch whispers to multiple p
 
 ### Sending Whispers
 
-**Option 1: Using Predefined Message**
-1. Open the player list window with `/wta`
-2. Click **Send Whispers** button
-3. The chat box will open with your saved message pre-filled
-4. Press Enter to confirm and send to all players
-
-**Option 2: Using Command Line**
-- Type `/wta Your custom message here` to immediately send to all players
+1. Open the WhisperThemAll window via the Friends Frame button
+2. Make sure you have player names added and a message configured
+3. Click **Send Whispers** button
+4. All players in your list will receive the message
 
 ## Examples
 
-```
-/wta                              # Opens management window
-/wta Hey, want to run some M+?   # Sends message to all players in list
-```
-
-## Data Storage
-
-The addon saves the following data:
-- **Player Names**: Your list of whisper recipients
-- **Message Template**: Your predefined message
-
-All data is stored in `WhisperThemAllDB` and persists across sessions.
-
-## Compatibility
-
-- **Interface Version**: 11.2.0 (The War Within)
-- **Game Version**: World of Warcraft Retail
-
-## Notes
-
-- Player names are trimmed of whitespace automatically
-- Empty lines in the player list are ignored
-- Messages are limited to WoW's whisper character limits
-- The addon provides feedback when sending whispers
-
-## License
-
-Free to use and modify.
+The addon integrates directly into the Friends Frame - simply click the WhisperThemAll button to get started!
