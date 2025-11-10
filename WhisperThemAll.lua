@@ -287,7 +287,6 @@ local function createMessagePanel()
     saveButton:SetScript("OnClick", function()
         WhisperThemAllDB.message = messageInput:GetText()
         originalMessage = WhisperThemAllDB.message
-        print("|cff00ff00WhisperThemAll:|r Message saved.")
         childFrame:Hide()
     end)
     
@@ -315,16 +314,12 @@ end
 local function runWhisperSend(messageText)
     local namesText = WhisperThemAllDB.playerNames
     if not namesText or namesText == "" then
-        print("|cffff0000WhisperThemAll:|r No player names in list.")
         return
     end
     
     local playerNames = parsePlayerNames(namesText)
     if #playerNames > 0 then
         sendWhispers(messageText, playerNames)
-        print("|cff00ff00WhisperThemAll:|r Sent message to " .. #playerNames .. " player(s).")
-    else
-        print("|cffff0000WhisperThemAll:|r No valid player names in list.")
     end
 end
 
@@ -369,7 +364,6 @@ local function createWhisperButton(parentFrame)
     whisperButton:SetScript("OnClick", function()
         local messageText = WhisperThemAllDB.message
         if not messageText or messageText == "" then
-            print("|cffff0000WhisperThemAll:|r No message configured. Click 'Configure Message' first.")
             return
         end
         
