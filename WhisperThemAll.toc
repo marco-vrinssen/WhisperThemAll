@@ -1,0 +1,8 @@
+## Interface: 110200
+## Title: Whisper Them All
+## Notes: Send batch whispers to multiple players with saved message templates
+## Author: MIYANKO
+## Version: 1.0.0
+## SavedVariables: WhisperThemAllDB
+
+WhisperThemAll.lua
